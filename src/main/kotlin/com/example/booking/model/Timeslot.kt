@@ -11,7 +11,7 @@ import javax.persistence.Table
 class Timeslot(
     @Id
     @Column(name = "id", nullable = false)
-    var id: Int,
+    var id: String,
 
     @Column(name = "start_time", nullable = false)
     var startTime: LocalTime,

@@ -1,5 +1,6 @@
 package com.example.booking.controller
 
+import com.example.booking.dto.RestaurantDTO
 import com.example.booking.dto.LoginDTO
 import com.example.booking.dto.Message
 import com.example.booking.dto.RegisterDTO
@@ -101,24 +102,48 @@ class Controller(
     }
 
     @PostMapping("/api/restaurant")
-    fun addRestaurant(@RequestBody restaurant: Restaurant): String {
+    fun addRestaurant(@RequestBody body: RestaurantDTO): ResponseEntity<Any> {
+        val restaurant = Restaurant()
+        restaurant.id = body.id
+        restaurant.name = body.name
+        restaurant.address = body.address
+        restaurant.phone = body.phone
 
         for (el in restaurantService.get()) {
             if (el.address == restaurant.address)
-                return "Restaurant with this address already exists!"
+                return ResponseEntity.status(409).body(Message("restaurant with this address already exists!"))
         }
-        restaurantService.add(restaurant)
-        return "Restaurant successfully added."
+
+        return ResponseEntity.ok(restaurantService.add(restaurant))
     }
 
     @GetMapping("/api/restaurants")
-    fun showRestaurants() = restaurantService.get()
+    fun showRestaurants(@CookieValue("jwt") jwt: String?): ResponseEntity<Any> {
+        if (jwt == null)
+            return ResponseEntity.status(401).body(Message("unauthenticated"))
+
+        return ResponseEntity.ok(restaurantService.get())
+    }
 
     @GetMapping("/api/restaurants/{id}")
     fun showRestaurantTimeslots(
+        @CookieValue("jwt") jwt: String?,
         @PathVariable(name = "id") restaurantId: String,
         date: String
-    ) = reservationService.getAvailableTimeslots(restaurantId, LocalDate.parse(date))
+    ): ResponseEntity<Any> {
+        if (jwt == null)
+            return ResponseEntity.status(401).body(Message("unauthenticated"))
+
+        val availableTime: MutableList<String> = mutableListOf()
+
+        for (timeslot in reservationService.getAvailableTimeslots(restaurantId, LocalDate.parse(date))) {
+            availableTime.add(timeslot.startTime.toString() + " - " + timeslot.endTime.toString())
+        }
+
+        return ResponseEntity.ok(availableTime)
+    }
+
+    //Unfinished!
 
     @PostMapping("/api/create-reservation")
     fun createReservation(
