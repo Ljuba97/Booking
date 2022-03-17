@@ -7,6 +7,4 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface RestaurantRepository : JpaRepository<Restaurant, String> {
-    @Query("SELECT name FROM Restaurant")
-    fun getAllRestaurantNames(): MutableList<String>
 }

@@ -11,11 +11,11 @@ import javax.persistence.Table
 class Timeslot(
     @Id
     @Column(name = "id", nullable = false)
-    val id: Int,
+    var id: Int,
 
     @Column(name = "start_time", nullable = false)
-    val startTime: LocalTime,
+    var startTime: LocalTime,
 
     @Column(name = "end_time", nullable = false)
-    val endTime: LocalTime
+    var endTime: LocalTime
 )

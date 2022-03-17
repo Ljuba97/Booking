@@ -1,5 +1,7 @@
 package com.example.booking.model
 
+import com.example.booking.function.getSha256
+import com.fasterxml.jackson.annotation.JsonIgnore
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.Id
@@ -7,23 +9,28 @@ import javax.persistence.Table
 
 @Table(name = "user")
 @Entity
-class User (
+class User {
     @Id
     @Column(name = "id", nullable = false)
-    var id: String,
+    var id = ""
 
     @Column(name = "first_name", nullable = false)
-    var firstName: String,
+    var firstName = ""
 
     @Column(name = "last_name", nullable = false)
-    var lastName: String,
+    var lastName = ""
 
-    @Column(name = "email", nullable = false)
-    var email: String,
+    @Column(name = "email", unique = true, nullable = false)
+    var email = ""
 
     @Column(name = "password", nullable = false)
-    var password: String,
+    @JsonIgnore
+    var password = ""
 
     @Column(name = "phone")
-    var phone: String?
-)
+    var phone = ""
+
+    fun comparePassword(password: String): Boolean {
+        return this.password == getSha256(password)
+    }
+}

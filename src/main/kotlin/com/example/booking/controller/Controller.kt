@@ -1,19 +1,25 @@
 package com.example.booking.controller
 
+import com.example.booking.dto.LoginDTO
+import com.example.booking.dto.Message
+import com.example.booking.dto.RegisterDTO
 import com.example.booking.function.getSha256
 import com.example.booking.function.isEmailValid
-import com.example.booking.model.Reservation
 import com.example.booking.model.Restaurant
-import com.example.booking.model.Timeslot
 import com.example.booking.model.User
 import com.example.booking.service.ReservationService
 import com.example.booking.service.RestaurantService
 import com.example.booking.service.TimeslotService
 import com.example.booking.service.UserService
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
 import java.time.LocalTime
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.SignatureAlgorithm
 import java.util.*
+import javax.servlet.http.Cookie
+import javax.servlet.http.HttpServletResponse
 
 @RestController
 class Controller(
@@ -24,50 +30,89 @@ class Controller(
     ) {
 
     @PostMapping("/api/register")
-    fun register(firstName: String, lastName: String, email: String, password: String, phone: String): String {
+    fun register(@RequestBody body: RegisterDTO): ResponseEntity<Any> {
+        val user = User()
+        user.id = body.id
+        user.firstName = body.firstName
+        user.lastName = body.lastName
+        user.email = body.email
+        user.password = getSha256(body.password)
+        user.phone = body.phone
 
-        val id = UUID.randomUUID().toString()
-        val encryptedPassword = getSha256(password)
-
-        for (user in userService.get()) {
-            if (user.email == email)
-                return "User with this email already exists!"
+        for (el in userService.get()) {
+            if (el.email == user.email)
+                return ResponseEntity.status(409).body(Message("user with this email already exists!"))
         }
 
-        if (!isEmailValid(email))
-            return "Email not valid!"
+        if (!isEmailValid(user.email))
+            return ResponseEntity.badRequest().body(Message("invalid email!"))
 
-        if (password.length < 8)
-            return "Password must be at least 8 characters long!"
+        if (body.password.length < 8)
+            return ResponseEntity.badRequest().body(Message("password must be at least 8 characters long!"))
 
-        userService.add(User(id, firstName, lastName, email, encryptedPassword, phone))
-        return "User has successfully registered."
+        return ResponseEntity.ok(userService.add(user))
     }
 
     @PostMapping("/api/login")
-    fun login(email: String, password: String): String {
+    fun login(@RequestBody body: LoginDTO, response: HttpServletResponse): ResponseEntity<Any> {
+        val user = userService.findByEmail(body.email)
+            ?: return ResponseEntity.badRequest().body(Message("user not found!"))
 
-        for (user in userService.get()) {
-            if (user.email == email && user.password == getSha256(password))
-                return "You have successfully logged in."
+        if (!user.comparePassword(body.password))
+            return ResponseEntity.badRequest().body(Message("invalid password!"))
+
+        val issuer = user.id
+
+        val jwt = Jwts.builder()
+            .setIssuer(issuer)
+            .setExpiration(Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) //day
+            .signWith(SignatureAlgorithm.HS256, "secret").compact()
+
+        val cookie = Cookie("jwt", jwt)
+        cookie.isHttpOnly = true
+
+        response.addCookie(cookie)
+
+        return ResponseEntity.ok(Message("success"))
+    }
+
+    @GetMapping("/api/user")
+    fun user(@CookieValue("jwt") jwt: String?): ResponseEntity<Any> {
+        try {
+            if (jwt == null)
+                return ResponseEntity.status(401).body(Message("unauthenticated"))
+
+            val body = Jwts.parser().setSigningKey("secret").parseClaimsJws(jwt).body
+
+            return ResponseEntity.ok(userService.getById(body.issuer))
+        } catch (e: Exception) {
+            return ResponseEntity.status(401).body(Message("unauthenticated"))
         }
-        return "Invalid email or password!"
+    }
+
+    @PostMapping("/api/logout")
+    fun logout(response: HttpServletResponse): ResponseEntity<Any> {
+        val cookie = Cookie("jwt", "")
+
+        cookie.maxAge = 0
+        response.addCookie(cookie)
+
+        return ResponseEntity.ok(Message("success"))
     }
 
     @PostMapping("/api/restaurant")
-    fun addRestaurant(name: String): String {
+    fun addRestaurant(@RequestBody restaurant: Restaurant): String {
 
-        val id = UUID.randomUUID().toString()
-
-        if (restaurantService.getAllRestaurantNames().contains(name))
-            return "Restaurant with this name already exists!"
-
-        restaurantService.add(Restaurant(id, name))
+        for (el in restaurantService.get()) {
+            if (el.address == restaurant.address)
+                return "Restaurant with this address already exists!"
+        }
+        restaurantService.add(restaurant)
         return "Restaurant successfully added."
     }
 
     @GetMapping("/api/restaurants")
-    fun showRestaurants() = restaurantService.getAllRestaurantNames()
+    fun showRestaurants() = restaurantService.get()
 
     @GetMapping("/api/restaurants/{id}")
     fun showRestaurantTimeslots(

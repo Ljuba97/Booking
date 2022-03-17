@@ -7,10 +7,6 @@ import org.springframework.stereotype.Service
 @Service
 class RestaurantServiceImpl(val restaurantRepository: RestaurantRepository) : RestaurantService {
 
-    override fun getAllRestaurantNames(): MutableList<String> {
-        return restaurantRepository.getAllRestaurantNames()
-    }
-
     override fun add(entity: Restaurant) {
         restaurantRepository.save(entity)
     }
