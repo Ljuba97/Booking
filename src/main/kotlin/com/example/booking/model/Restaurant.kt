@@ -1,5 +1,6 @@
 package com.example.booking.model
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.Id
@@ -11,6 +12,8 @@ class Restaurant {
     @Id
     @Column(name = "id", nullable = false)
     var id = ""
+        @JsonIgnore
+        get
 
     @Column(name = "name", nullable = false)
     var name = ""

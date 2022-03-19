@@ -24,8 +24,9 @@ class User {
     var email = ""
 
     @Column(name = "password", nullable = false)
-    @JsonIgnore
     var password = ""
+        @JsonIgnore
+        get
 
     @Column(name = "phone")
     var phone = ""

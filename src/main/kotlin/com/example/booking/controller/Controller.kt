@@ -1,9 +1,6 @@
 package com.example.booking.controller
 
-import com.example.booking.dto.RestaurantDTO
-import com.example.booking.dto.LoginDTO
-import com.example.booking.dto.Message
-import com.example.booking.dto.RegisterDTO
+import com.example.booking.dto.*
 import com.example.booking.function.getSha256
 import com.example.booking.function.isEmailValid
 import com.example.booking.model.Restaurant
@@ -15,7 +12,6 @@ import com.example.booking.service.UserService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
-import java.time.LocalTime
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
 import java.util.*
@@ -143,27 +139,41 @@ class Controller(
         return ResponseEntity.ok(availableTime)
     }
 
-    //Unfinished!
-
     @PostMapping("/api/create-reservation")
     fun createReservation(
-        @RequestHeader(name = "user") userId: String,
-        @RequestHeader(name = "restaurant") restaurantId: String,
-        date: String,
-        startTime: String,
-        endTime: String
-    ) {
-        val id = UUID.randomUUID().toString()
-        val timeslotId = timeslotService.getTimeslotId(LocalTime.parse(startTime), LocalTime.parse(endTime))
+        @CookieValue("jwt") jwt: String?,
+        @RequestBody body: CreateReservationDTO
+    ): ResponseEntity<Any> {
+        try {
+            if (jwt == null) {
+                return ResponseEntity.status(401).body(Message("unauthenticated"))
+            }
 
-        reservationService.createReservation(id, LocalDate.parse(date), userId, restaurantId, timeslotId)
+            val userId = Jwts.parser().setSigningKey("secret").parseClaimsJws(jwt).body.issuer
+            val timeslotId = timeslotService.getTimeslotId(body.startTime, body.endTime)
+
+            return ResponseEntity.ok(
+                reservationService.createReservation(body.id, body.date, userId, body.restaurantId, timeslotId)
+            )
+        } catch (e: Exception) {
+            return ResponseEntity.status(401).body(Message("unauthenticated"))
+        }
     }
 
     @PostMapping("/api/cancel-reservation")
     fun cancelReservation(
-        @RequestHeader(name = "reservation") reservationId: String,
-        @RequestHeader(name = "user") userId: String
-    ) {
-        reservationService.deleteReservation(reservationId, userId)
+        @CookieValue("jwt") jwt: String?,
+        @RequestBody body: CancelReservationDTO,
+    ): ResponseEntity<Any> {
+        try {
+            if (jwt == null) {
+                return ResponseEntity.status(401).body("unauthenticated")
+            }
+            val userId = Jwts.parser().setSigningKey("secret").parseClaimsJws(jwt).body.issuer
+
+            return ResponseEntity.ok(reservationService.deleteReservation(body.reservationId, userId))
+        } catch (e: Exception) {
+            return ResponseEntity.status(401).body(Message("unauthenticated"))
+        }
     }
 }
